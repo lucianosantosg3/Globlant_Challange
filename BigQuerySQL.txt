@@ -1,0 +1,66 @@
+select * from `bigquery-public-data-390223.dataset.department`;
+select * from `bigquery-public-data-390223.dataset.employee`;
+select * from `bigquery-public-data-390223.dataset.job`;
+
+select CASE 
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 1 AND 3 THEN 'Q1'
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 4 AND 6 THEN 'Q2'
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 7 AND 9 THEN 'Q3'
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 10 AND 12 THEN 'Q4'
+       END 
+from `bigquery-public-data-390223.dataset.employee`;
+
+
+CREATE VIEW `bigquery-public-data-390223.dataset.vw_hired_employees_quarters` AS 
+WITH dataset as (
+SELECT emp.id,
+       dep.department,
+       job.job,emp.datetime,
+       CASE 
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 1 AND 3 THEN 'Q1'
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 4 AND 6 THEN 'Q2'
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 7 AND 9 THEN 'Q3'
+       WHEN EXTRACT(MONTH FROM datetime) BETWEEN 10 AND 12 THEN 'Q4'
+       END quarter
+from `bigquery-public-data-390223.dataset.employee` emp
+INNER JOIN `bigquery-public-data-390223.dataset.department` dep on emp.department_id = dep.id
+INNER JOIN `bigquery-public-data-390223.dataset.job` job on job.id = emp.job_id
+where extract(year from datetime) = 2021)
+
+
+select department,job
+       ,coalesce(Q1,0) Q1
+       ,coalesce(Q2,0) Q2
+       ,coalesce(Q3,0) Q3
+       ,coalesce(Q4,0) Q4
+from
+(select department,
+       job,
+       quarter,
+       count(id) count
+       from dataset
+group by department,job,quarter)
+PIVOT (
+  SUM(count) FOR quarter IN ('Q1' AS Q1, 'Q2' AS Q2, 'Q3' AS Q3, 'Q4' AS Q4)
+)
+order by department asc,job asc;
+
+
+WITH dataset as(
+SELECT dep.id,
+       dep.department,
+       count(emp.id) count
+from `bigquery-public-data-390223.dataset.employee` emp
+INNER JOIN `bigquery-public-data-390223.dataset.department` dep on emp.department_id = dep.id
+group by dep.id,dep.department)
+
+select id,
+       department,
+       count,
+       avg(sum(count)) media
+from dataset
+group by  id,
+       department,
+       count;
+
+
